@@ -1,28 +1,53 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+function App(): React.JSX.Element {
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const device = useCameraDevice('back');
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  useEffect(() => {
+    if (!hasPermission) {
+      requestPermission();
+    }
+  }, [hasPermission, requestPermission]);
+
+  if (device == null) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>ไม่พบอุปกรณ์กล้อง</Text>
+      </View>
+    );
+  }
+
+  if (!hasPermission) {
+    return (
+        <View style={styles.container}>
+            <Text style={styles.text}>แอปไม่ได้รับอนุญาตให้ใช้กล้อง</Text>
+        </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <NewAppScreen templateFileName="App.tsx" />
-    </View>
+    <Camera style={StyleSheet.absoluteFill} device={device} isActive={true} />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'black',
+    },
+    text: {
+        color: 'white',
+        fontSize: 18,
+    }
 });
 
 export default App;
