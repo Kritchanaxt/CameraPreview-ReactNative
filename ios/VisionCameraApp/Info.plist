@@ -37,6 +37,8 @@
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>$(PRODUCT_NAME) needs access to your Microphone for recording videos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library to save photos/videos.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
