@@ -1,25 +1,24 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import {
   Camera,
   useCameraPermission,
   useCameraDevices,
   CameraFormat,
+  PhotoFile,
 } from 'react-native-vision-camera';
 
-// Helper function to parse resolution string "WxH" to {width, height}
 const parseResolutionString = (res: string) => {
   const [width, height] = res.split('x').map(Number);
   return { width, height };
 };
 
-// Predefined resolutions by aspect ratio
 const predefinedResolutionsByRatio: { [key: string]: string[] } = {
   'Square (1:1)': [
     "720x720", "960x960", "1080x1080", "1200x1200", "1280x1280",
     "1440x1440", "1600x1600", "1920x1920", "2048x2048",
     "2160x2160", "2560x2560", "3024x3024"
-  ].sort((a, b) => { // Sort numerically by width, then height
+  ].sort((a, b) => {
     const resA = parseResolutionString(a);
     const resB = parseResolutionString(b);
     if (resA.width !== resB.width) return resA.width - resB.width;
@@ -68,23 +67,20 @@ const predefinedResolutionsByRatio: { [key: string]: string[] } = {
   })
 };
 
-// Main App component
 function App(): React.JSX.Element {
   const { hasPermission, requestPermission } = useCameraPermission();
-  const devices = useCameraDevices(); // Get all available camera devices
+  const devices = useCameraDevices();
 
-  // State to store information about detected cameras, including a user-friendly name and display resolution.
-  const [detectedCamerasInfo, setDetectedCamerasInfo] = useState<{ name: string; device: any; displayResolution: string; }[]>([]);
+  const camera = useRef<Camera>(null);
+
+  const [detectedCamerasInfo, setDetectedCamerasInfo] = useState<{ name: string; device: any; displayResolution: string; photoDisplayResolution: string; }[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
-  const [showDeviceList, setShowDeviceList] = useState(false); // State to control visibility of device list
-  const [showResolutionSelection, setShowResolutionSelection] = useState(false); // State for resolution selection modal
+  const [showDeviceList, setShowDeviceList] = useState(false);
+  const [showResolutionSelection, setShowResolutionSelection] = useState(false);
 
-  // State to hold the currently selected camera format for the Camera component
   const [currentCameraFormat, setCurrentCameraFormat] = useState<CameraFormat | undefined>(undefined);
-  // State to control zoom level (for multi-cameras like Dual Wide)
-  const [currentZoom, setCurrentZoom] = useState<number>(1); // Default to 1x zoom
+  const [currentZoom, setCurrentZoom] = useState<number>(1);
 
-  // Find front and back devices efficiently
   const backCamera = devices.find(d => d.position === 'back' && d.physicalDevices.includes('wide-angle-camera'));
   const frontCamera = devices.find(d => d.position === 'front' && d.physicalDevices.includes('wide-angle-camera'));
 
@@ -94,15 +90,13 @@ function App(): React.JSX.Element {
     }
   }, [hasPermission, requestPermission]);
 
-  // Effect to detect cameras and set default device/format
   useEffect(() => {
     if (hasPermission && devices.length > 0) {
-      const foundCameras: { name: string; device: any; displayResolution: string; }[] = [];
+      const foundCameras: { name: string; device: any; displayResolution: string; photoDisplayResolution: string; }[] = [];
 
       devices.forEach(device => {
         let deviceName = device.name || device.id; 
         
-        // Assign user-friendly names based on device properties
         if (device.position === 'front') {
             if (device.physicalDevices.includes('ultra-wide-angle-camera')) {
                 deviceName = 'Front Ultra Wide Camera';
@@ -127,8 +121,8 @@ function App(): React.JSX.Element {
             }
         }
 
-        // Find the actual highest resolution for THIS device for display purposes
-        const highestResFormatForDisplay = device.formats
+        // Find the actual highest VIDEO resolution for THIS device for display purposes
+        const highestVideoResFormatForDisplay = device.formats
             .sort((a: CameraFormat, b: CameraFormat) => {
                 const areaA = a.videoWidth * a.videoHeight;
                 const areaB = b.videoWidth * b.videoHeight;
@@ -136,19 +130,36 @@ function App(): React.JSX.Element {
                 return b.maxFrameRate - a.maxFrameRate;
             })[0];
         
-        const displayResString = highestResFormatForDisplay 
-            ? `${highestResFormatForDisplay.videoWidth}x${highestResFormatForDisplay.videoHeight}` 
+        const videoDisplayResString = highestVideoResFormatForDisplay 
+            ? `${highestVideoResFormatForDisplay.videoWidth}x${highestVideoResFormatForDisplay.videoHeight}` 
             : 'Unknown';
+
+        // Find the actual highest PHOTO resolution for THIS device for display purposes
+        const highestPhotoResFormatForDisplay = device.formats
+            .filter((f: CameraFormat) => f.photoWidth && f.photoHeight)
+            .sort((a: CameraFormat, b: CameraFormat) => {
+                const areaA = (a.photoWidth || 0) * (a.photoHeight || 0);
+                const areaB = (b.photoWidth || 0) * (b.photoHeight || 0);
+                if (areaA !== areaB) return areaB - areaA;
+                const videoAreaA = a.videoWidth * a.videoHeight;
+                const videoAreaB = b.videoWidth * b.videoHeight;
+                if (videoAreaA !== videoAreaB) return videoAreaB - videoAreaA;
+                return (b.maxFrameRate || 0) - (a.maxFrameRate || 0);
+            })[0];
+        
+        const photoDisplayResString = highestPhotoResFormatForDisplay
+            ? `${highestPhotoResFormatForDisplay.photoWidth}x${highestPhotoResFormatForDisplay.photoHeight}`
+            : 'N/A';
 
         foundCameras.push({ 
             name: deviceName, 
             device, 
-            displayResolution: displayResString // Store the highest resolution string
+            displayResolution: videoDisplayResString,
+            photoDisplayResolution: photoDisplayResString
         });
       });
 
-      // Filter out exact duplicates based on device ID
-      const uniqueCameraInfo: { name: string; device: any; displayResolution: string; }[] = [];
+      const uniqueCameraInfo: { name: string; device: any; displayResolution: string; photoDisplayResolution: string; }[] = [];
       const seenDeviceIds = new Set<string>();
 
       foundCameras.forEach(info => {
@@ -160,78 +171,115 @@ function App(): React.JSX.Element {
       
       setDetectedCamerasInfo(uniqueCameraInfo);
       
-      // Set a default selected device (e.g., a back wide-angle camera)
       if (!selectedDevice) {
         const defaultDevice = backCamera || frontCamera || devices[0];
         setSelectedDevice(defaultDevice);
       }
     }
-  }, [hasPermission, devices]);
+  }, [hasPermission, devices, selectedDevice]);
 
-  // Effect to set default format and zoom when selectedDevice changes
   useEffect(() => {
     if (selectedDevice) {
-      // Find the highest resolution format for the selectedDevice
-      const defaultFormat = selectedDevice.formats
+      // IMPORTANT: Check this log in your console!
+      // This will show you what resolutions VisionCamera reports for selectedDevice.formats.
+      console.log("Formats available for selected device:", selectedDevice.formats);
+      console.log("Selected device info:", selectedDevice);
+
+      const defaultVideoFormat = selectedDevice.formats
           .sort((a: CameraFormat, b: CameraFormat) => {
               const areaA = a.videoWidth * a.videoHeight;
               const areaB = b.videoWidth * b.videoHeight;
               if (areaA !== areaB) return areaB - areaA;
               return b.maxFrameRate - a.maxFrameRate;
-          })[0]; // Pick the first (highest resolution)
+          })[0];
       
-      if (defaultFormat) {
-          setCurrentCameraFormat(defaultFormat);
-          console.log("Setting default format to:", defaultFormat.videoWidth, "x", defaultFormat.videoHeight, "@", defaultFormat.maxFrameRate);
+      const highestPhotoFormat = selectedDevice.formats
+          .filter((f: CameraFormat) => f.photoWidth && f.photoHeight)
+          .sort((a: CameraFormat, b: CameraFormat) => {
+              const areaA = (a.photoWidth || 0) * (a.photoHeight || 0);
+              const areaB = (b.photoWidth || 0) * (b.photoHeight || 0);
+              if (areaA !== areaB) return areaB - areaA;
+              const videoAreaA = a.videoWidth * a.videoHeight;
+              const videoAreaB = b.videoWidth * b.videoHeight;
+              if (videoAreaA !== videoAreaB) return videoAreaB - videoAreaA;
+              return (b.maxFrameRate || 0) - (a.maxFrameRate || 0);
+          })[0];
+
+      if (defaultVideoFormat) {
+          setCurrentCameraFormat(defaultVideoFormat);
+          console.log("Setting default video format for preview to:", defaultVideoFormat.videoWidth, "x", defaultVideoFormat.videoHeight, "@", defaultVideoFormat.maxFrameRate);
       } else {
-          console.error("No formats available for selected device.");
+          console.error("No video formats available for selected device.");
           setCurrentCameraFormat(undefined);
       }
 
-      // Logic to control zoom for Back Dual Wide Camera to get Ultra Wide view
-      // This uses the device's minZoom which typically corresponds to the ultra-wide lens
+      if (highestPhotoFormat && highestPhotoFormat.photoWidth && highestPhotoFormat.photoHeight) {
+          console.log("Highest Photo Resolution available:", highestPhotoFormat.photoWidth, "x", highestPhotoFormat.photoHeight);
+      } else {
+          console.log("No specific photo resolution found or supported for highest quality.");
+      }
+
+      // Logic to control zoom for multi-cameras (e.g., Back Dual Wide)
       if (selectedDevice.physicalDevices.includes('ultra-wide-angle-camera') && 
           selectedDevice.physicalDevices.includes('wide-angle-camera') &&
           selectedDevice.position === 'back') {
+            console.log("Setting zoom to minZoom for Back Dual Wide Camera (Ultra Wide view)");
             setCurrentZoom(selectedDevice.minZoom || 1); 
       } else {
-            // For other cameras, reset to neutral zoom (or 1x if neutralZoom is not available)
             setCurrentZoom(selectedDevice.neutralZoom || 1);
       }
 
     } else {
-        // Clear format and zoom if no device is selected
         setCurrentCameraFormat(undefined);
         setCurrentZoom(1);
     }
   }, [selectedDevice]); 
 
+  const onPressTakePhoto = useCallback(async () => {
+    if (camera.current == null) {
+      Alert.alert('Error', 'Camera is not ready!');
+      return;
+    }
+    
+    try {
+      console.log('Attempting to take photo...');
+      const photo: PhotoFile = await camera.current.takePhoto({
+        qualityPrioritization: 'quality',
+        skipMetadata: false,
+      });
+      console.log('Photo taken!', photo);
+      Alert.alert(
+        'Photo Taken!',
+        `Path: ${photo.path}\nResolution: ${photo.width}x${photo.height}\nFileSize: ${Math.round(photo.size / 1024)}KB`
+      );
 
-  // Function to handle camera selection from the list
-  const handleCameraSelect = useCallback((deviceToSelect: any) => {
-    if (deviceToSelect) {
-      setSelectedDevice(deviceToSelect);
-      setCurrentCameraFormat(undefined); // Reset format for new device
-      Alert.alert("Select Camera", `Switched to: ${deviceToSelect.name || deviceToSelect.id} (${deviceToSelect.position === 'front' ? 'Front' : 'Back'})`);
-      setShowDeviceList(false); // Close the device list after selection
-    } else {
-      Alert.alert("Error", "Selected camera not found.");
+    } catch (e) {
+      console.error('Failed to take photo!', e);
+      Alert.alert('Error', `Failed to take photo: ${e.message}`);
     }
   }, []);
 
-  // Toggle visibility of the device list
+  const handleCameraSelect = useCallback((deviceToSelect: any) => {
+    if (deviceToSelect) {
+      setSelectedDevice(deviceToSelect);
+      setCurrentCameraFormat(undefined);
+      Alert.alert("เลือกกล้อง", `สลับไปใช้: ${deviceToSelect.name || deviceToSelect.id} (${deviceToSelect.position === 'front' ? 'หน้า' : 'หลัง'})`);
+      setShowDeviceList(false);
+    } else {
+      Alert.alert("ข้อผิดพลาด", "ไม่พบกล้องที่เลือก");
+    }
+  }, []);
+
   const toggleDeviceList = useCallback(() => {
     setShowDeviceList(prev => !prev);
-    setShowResolutionSelection(false); // Close resolution selection if open
+    setShowResolutionSelection(false);
   }, []);
 
-  // Toggle visibility of the resolution selection list
   const toggleResolutionSelection = useCallback(() => {
     setShowResolutionSelection(prev => !prev);
-    setShowDeviceList(false); // Close device list if open
+    setShowDeviceList(false);
   }, []);
 
-  // Function to toggle between front and back camera positions
   const toggleCameraPosition = useCallback(() => {
     if (selectedDevice) {
       let newDevice = null;
@@ -243,15 +291,14 @@ function App(): React.JSX.Element {
 
       if (newDevice) {
         setSelectedDevice(newDevice);
-        setCurrentCameraFormat(undefined); // Reset format for new device
-        Alert.alert("Switch Camera", `Switched to: ${newDevice.position === 'front' ? 'Front' : 'Back'} Camera`);
+        setCurrentCameraFormat(undefined);
+        Alert.alert("สลับกล้อง", `สลับไปใช้กล้อง: ${newDevice.position === 'front' ? 'หน้า' : 'หลัง'}`);
       } else {
-        Alert.alert("No Camera Found", `No ${selectedDevice.position === 'back' ? 'front' : 'back'} camera to switch to on this device.`);
+        Alert.alert("ไม่พบกล้อง", `ไม่พบกล้อง${selectedDevice.position === 'back' ? 'หน้า' : 'หลัง'}ที่จะสลับบนอุปกรณ์นี้`);
       }
     }
   }, [selectedDevice, devices]);
 
-  // Function to filter and return supported resolutions for a given aspect ratio
   const getSupportedResolutionsForRatio = useCallback((ratioKey: string) => {
     if (!selectedDevice || !predefinedResolutionsByRatio[ratioKey]) {
       return [];
@@ -265,7 +312,6 @@ function App(): React.JSX.Element {
     resolutionsForRatio.forEach(resStr => {
       const { width, height } = parseResolutionString(resStr);
 
-      // Check if the device's formats include this resolution
       const isSupported = availableFormats.some((f: CameraFormat) => 
         f.videoWidth === width && f.videoHeight === height
       );
@@ -277,24 +323,21 @@ function App(): React.JSX.Element {
     return supported;
   }, [selectedDevice]);
 
-  // State to keep track of the selected aspect ratio in the resolution modal
   const [selectedAspectRatioKey, setSelectedAspectRatioKey] = useState<string | null>(null);
 
-  // Handle resolution selection from the list
   const handleResolutionSelect = useCallback((resolutionString: string) => {
     if (selectedDevice) {
       const { width, height } = parseResolutionString(resolutionString);
-      // Find the actual CameraFormat object that matches the selected resolution
       const formatToApply = selectedDevice.formats.find(
         (f: CameraFormat) => f.videoWidth === width && f.videoHeight === height
       );
 
       if (formatToApply) {
         setCurrentCameraFormat(formatToApply);
-        Alert.alert("Select Resolution", `Switched to: ${resolutionString}`);
-        setShowResolutionSelection(false); // Close modal
+        Alert.alert("เลือก Resolution", `สลับไปใช้: ${resolutionString}`);
+        setShowResolutionSelection(false);
       } else {
-        Alert.alert("Error", "No supported format found for this resolution.");
+        Alert.alert("ข้อผิดพลาด", "ไม่พบ Format ที่รองรับสำหรับ Resolution นี้");
       }
     }
   }, [selectedDevice]);
@@ -303,16 +346,15 @@ function App(): React.JSX.Element {
   if (!hasPermission) {
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>App does not have camera permission.</Text>
+            <Text style={styles.text}>แอปไม่ได้รับอนุญาตให้ใช้กล้อง</Text>
         </View>
     );
   }
 
-  // Display initial loading or no device state
   if (selectedDevice == null || currentCameraFormat === undefined) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Searching for camera devices and setting resolution...</Text>
+        <Text style={styles.text}>กำลังค้นหาอุปกรณ์กล้องและตั้งค่า Resolution...</Text>
       </View>
     );
   }
@@ -321,39 +363,40 @@ function App(): React.JSX.Element {
     <View style={styles.container}>
       {selectedDevice && currentCameraFormat && !showDeviceList && !showResolutionSelection ? (
         <Camera 
+          ref={camera}
           style={StyleSheet.absoluteFill} 
           device={selectedDevice} 
           format={currentCameraFormat} 
           isActive={true} 
-          zoom={currentZoom} // Pass the zoom level to the Camera component
+          zoom={currentZoom}
+          photo={true}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
-            <Text style={styles.text}>Loading camera or selecting camera/resolution...</Text>
+            <Text style={styles.text}>กำลังโหลดกล้อง หรือกำลังเลือกกล้อง/Resolution...</Text>
         </View>
       )}
 
-      {/* Overlay for buttons on main camera view */}
       {!showDeviceList && !showResolutionSelection && selectedDevice && (
         <>
-          {/* Settings Button */}
           <TouchableOpacity style={styles.settingsButton} onPress={toggleDeviceList}>
             <Text style={styles.settingsButtonText}>⚙️</Text>
           </TouchableOpacity>
 
-          {/* Camera Toggle Button */}
           <TouchableOpacity style={styles.cameraToggleButton} onPress={toggleCameraPosition}>
             <Text style={styles.cameraToggleButtonText}>🔄</Text>
           </TouchableOpacity>
 
-          {/* Resolution Selection Button */}
           <TouchableOpacity style={styles.resolutionButton} onPress={toggleResolutionSelection}>
             <Text style={styles.resolutionButtonText}>🖼️</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.takePhotoButton} onPress={onPressTakePhoto}>
+            <Text style={styles.takePhotoButtonText}></Text>
           </TouchableOpacity>
         </>
       )}
 
-      {/* Camera Devices List Modal/View */}
       {showDeviceList && (
         <View style={styles.deviceListContainer}>
           <View style={styles.deviceListHeader}>
@@ -377,22 +420,23 @@ function App(): React.JSX.Element {
                 >
                   <Text style={styles.cameraButtonLabel}>{cameraInfo.name}</Text>
                   <Text style={styles.cameraButtonDetails}>
-                    {/* Display physical devices for more detail */}
                     {cameraInfo.device.physicalDevices.join(', ')}
                   </Text>
                   <Text style={styles.cameraButtonDetails}>
-                      Resolution: {cameraInfo.displayResolution}
+                      Video Resolution: {cameraInfo.displayResolution}
+                  </Text>
+                  <Text style={styles.cameraButtonDetails}>
+                      Photo Resolution: {cameraInfo.photoDisplayResolution}
                   </Text>
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.text}>No specific camera types found.</Text>
+              <Text style={styles.text}>ไม่พบกล้องเฉพาะประเภท</Text>
             )}
           </ScrollView>
         </View>
       )}
 
-      {/* Resolution Selection Modal/View */}
       {showResolutionSelection && (
         <View style={styles.deviceListContainer}>
           <View style={styles.deviceListHeader}>
@@ -402,15 +446,14 @@ function App(): React.JSX.Element {
             <Text style={styles.deviceListTitle}>Resolution Selection</Text>
           </View>
           <Text style={styles.deviceListDescription}>
-            Select the Aspect Ratio and Resolution supported by the current camera.
-            {"\n"}Current Camera: {selectedDevice?.name || selectedDevice?.id} ({selectedDevice?.position === 'front' ? 'Front' : 'Back'})
-            {"\n"}Current Resolution: {currentCameraFormat?.videoWidth}x{currentCameraFormat?.videoHeight}
-            {"\n"}Current Zoom: {currentZoom.toFixed(2)}x
+            เลือก Aspect Ratio และ Resolution ที่รองรับโดยกล้องปัจจุบัน.
+            {"\n"}กล้องปัจจุบัน: {selectedDevice?.name || selectedDevice?.id} ({selectedDevice?.position === 'front' ? 'หน้า' : 'หลัง'})
+            {"\n"}Video Resolution ปัจจุบัน: {currentCameraFormat?.videoWidth}x{currentCameraFormat?.videoHeight}
+            {"\n"}Zoom ปัจจุบัน: {currentZoom.toFixed(2)}x
           </Text>
 
           <ScrollView style={styles.cameraListScrollView}>
-            {/* Aspect Ratio Selection */}
-            <Text style={styles.sectionTitle}>Select Aspect Ratio:</Text>
+            <Text style={styles.sectionTitle}>เลือก Aspect Ratio (Video/Preview):</Text>
             {Object.keys(predefinedResolutionsByRatio).map((ratioKey) => (
               <TouchableOpacity
                 key={ratioKey}
@@ -421,10 +464,9 @@ function App(): React.JSX.Element {
               </TouchableOpacity>
             ))}
 
-            {/* Resolutions for Selected Aspect Ratio */}
             {selectedAspectRatioKey && (
               <>
-                <Text style={styles.sectionTitle}>Select Resolution ({selectedAspectRatioKey}):</Text>
+                <Text style={styles.sectionTitle}>เลือก Video Resolution ({selectedAspectRatioKey}):</Text>
                 {getSupportedResolutionsForRatio(selectedAspectRatioKey).length > 0 ? (
                   getSupportedResolutionsForRatio(selectedAspectRatioKey).map((resStr) => (
                     <TouchableOpacity
@@ -442,8 +484,12 @@ function App(): React.JSX.Element {
                     </TouchableOpacity>
                   ))
                 ) : (
-                  <Text style={styles.cameraText}>No supported resolutions found for this Aspect Ratio.</Text>
+                  <Text style={styles.cameraText}>ไม่พบ Video Resolution ที่รองรับสำหรับ Aspect Ratio นี้</Text>
                 )}
+                <Text style={styles.textWarning}>
+                  หมายเหตุ: การเลือก Resolution ที่นี่มีผลต่อ Video Preview.
+                  Photo Resolution อาจแตกต่างกันและถูกกำหนดโดย Take Photo.
+                </Text>
               </>
             )}
           </ScrollView>
@@ -476,7 +522,6 @@ const styles = StyleSheet.create({
       fontSize: 14,
       marginTop: 2,
     },
-    // Styles for Settings Button (Top Right)
     settingsButton: {
         position: 'absolute',
         top: 50,
@@ -493,7 +538,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: 'white',
     },
-    // Styles for Camera Toggle Button (Right, below settings button)
     cameraToggleButton: {
         position: 'absolute',
         top: 110,
@@ -510,7 +554,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: 'white',
     },
-    // Styles for Resolution Selection Button (Right, below camera toggle button)
     resolutionButton: {
         position: 'absolute',
         top: 170,
@@ -527,12 +570,28 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: 'white',
     },
-
-    // Styles for Device List Container (Modal/Screen)
+    takePhotoButton: {
+        position: 'absolute',
+        bottom: 40,
+        alignSelf: 'center',
+        backgroundColor: '#FF0000',
+        borderRadius: 35,
+        width: 70,
+        height: 70,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+        borderWidth: 4,
+        borderColor: 'white',
+    },
+    takePhotoButtonText: {
+        fontSize: 36,
+        color: 'white',
+    },
     deviceListContainer: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'black',
-        paddingTop: 50, // To avoid status bar
+        paddingTop: 50,
     },
     deviceListHeader: {
         flexDirection: 'row',
@@ -545,7 +604,7 @@ const styles = StyleSheet.create({
         padding: 5,
     },
     backButtonText: {
-        color: '#007bff', // iOS blue
+        color: '#007bff',
         fontSize: 18,
     },
     deviceListTitle: {
@@ -565,19 +624,19 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
     },
     cameraButton: {
-        backgroundColor: '#1c1c1e', // Dark background for buttons
+        backgroundColor: '#1c1c1e',
         padding: 15,
         borderRadius: 8,
         marginBottom: 10,
     },
     selectedCameraButton: {
-        backgroundColor: '#007bff', // Highlight color for selected button
+        backgroundColor: '#007bff',
     },
-    cameraButtonText: { // Generic text style for buttons in modals
+    cameraButtonText: {
         color: 'white',
         fontSize: 16,
     },
-    cameraButtonLabel: { // Specific text style for camera device labels
+    cameraButtonLabel: {
         color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
