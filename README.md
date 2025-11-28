@@ -1,97 +1,467 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 📷 VisionCameraApp - React Native Camera Preview
 
-# Getting Started
+A React Native application demonstrating advanced camera functionality using [react-native-vision-camera](https://react-native-vision-camera.com/). This app provides a comprehensive camera experience with support for multiple camera devices, various aspect ratios, and high-resolution photo capture.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+![React Native](https://img.shields.io/badge/React_Native-0.80.0-blue)
+![Vision Camera](https://img.shields.io/badge/Vision_Camera-4.7.0-green)
+![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-lightgrey)
 
-## Step 1: Start Metro
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+---
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## 📱 Download APK
 
-```sh
+> **[Download APK for Android](./app-release.apk)**
+
+---
+
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [Digital Ink & OCR Integration](#-digital-ink--ocr-integration)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+
+---
+
+## ✨ Features
+
+- **📸 Multi-Camera Support**: Access front, back, wide-angle, ultra-wide-angle, and telephoto cameras
+- **🖼️ Multiple Aspect Ratios**: Support for 1:1, 4:3, 3:4, 16:9, and 9:16 ratios
+- **📏 Custom Resolutions**: Select from various predefined resolutions based on device capabilities
+- **🔄 Camera Switching**: Seamlessly switch between front and back cameras
+- **📷 High-Quality Photo Capture**: Take photos with quality prioritization
+- **⚙️ Camera Settings UI**: User-friendly interface for camera and resolution selection
+- **🔍 Auto Format Selection**: Automatically selects the best camera format for target resolution
+
+---
+
+## 📁 Project Structure
+
+```
+CameraPreview-ReactNative/
+├── App.tsx                    # Main application component with camera logic
+├── index.js                   # Entry point
+├── package.json               # Dependencies and scripts
+├── tsconfig.json              # TypeScript configuration
+├── babel.config.js            # Babel configuration
+├── metro.config.js            # Metro bundler configuration
+├── jest.config.js             # Jest testing configuration
+├── app.json                   # App configuration
+├── __tests__/                 # Test files
+│   └── App.test.tsx           # Main app tests
+├── android/                   # Android native code
+│   ├── app/
+│   │   ├── build.gradle       # Android app build configuration
+│   │   └── src/
+│   │       └── main/
+│   │           ├── AndroidManifest.xml  # Android permissions & config
+│   │           └── java/com/visioncameraapp/
+│   │               ├── MainActivity.kt
+│   │               └── MainApplication.kt
+│   ├── build.gradle           # Root build configuration
+│   └── settings.gradle        # Gradle settings
+├── ios/                       # iOS native code
+│   ├── Podfile                # CocoaPods dependencies
+│   ├── VisionCameraApp/
+│   │   ├── AppDelegate.swift  # iOS app delegate
+│   │   ├── Info.plist         # iOS permissions & config
+│   │   └── LaunchScreen.storyboard
+│   └── VisionCameraApp.xcworkspace/
+└── Gemfile                    # Ruby dependencies for iOS
+```
+
+---
+
+## 🛠️ Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+### General Requirements
+- **Node.js** >= 18.x
+- **npm** or **yarn**
+- **Git**
+
+### iOS Development (macOS only)
+- **Xcode** >= 14.0
+- **CocoaPods** >= 1.12.0
+- **Ruby** >= 2.7
+
+### Android Development
+- **Android Studio** >= Flamingo
+- **Android SDK** >= 24 (Android 7.0)
+- **JDK** >= 17
+
+---
+
+## 📥 Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Kritchanaxt/CameraPreview-ReactNative.git
+cd CameraPreview-ReactNative
+```
+
+### 2. Install Dependencies
+
+```bash
 # Using npm
-npm start
+npm install
 
-# OR using Yarn
+# Or using yarn
+yarn install
+```
+
+### 3. iOS Setup (macOS only)
+
+```bash
+# Install Ruby dependencies
+bundle install
+
+# Install CocoaPods dependencies
+cd ios
+pod install
+cd ..
+```
+
+### 4. Android Setup
+
+Ensure your Android environment is properly configured:
+
+```bash
+# Set ANDROID_HOME environment variable
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/tools
+export PATH=$PATH:$ANDROID_HOME/tools/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+```
+
+---
+
+## ⚙️ Configuration
+
+### Camera Permissions
+
+#### Android (`android/app/src/main/AndroidManifest.xml`)
+
+The following permissions are already configured:
+
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+```
+
+#### iOS (`ios/VisionCameraApp/Info.plist`)
+
+The following usage descriptions are already configured:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>$(PRODUCT_NAME) needs access to your Camera.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>$(PRODUCT_NAME) needs access to your Microphone for recording videos.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>This app needs access to your photo library to save photos/videos.</string>
+```
+
+---
+
+## 🚀 Usage
+
+### Running the App
+
+#### Start Metro Bundler
+
+```bash
+npm start
+# or
 yarn start
 ```
 
-## Step 2: Build and run your app
+#### Run on iOS
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+```bash
 npm run ios
-
-# OR using Yarn
+# or
 yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+#### Run on Android
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```bash
+npm run android
+# or
+yarn android
+```
 
-## Step 3: Modify your app
+### App Features Guide
 
-Now that you have successfully run the app, let's make changes!
+#### 1. Camera Preview
+When you launch the app, it automatically detects available camera devices and displays the camera preview.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+#### 2. Switch Camera (🔄)
+Tap the rotation icon to switch between front and back cameras.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+#### 3. Camera Settings (⚙️)
+Tap the settings icon to view all available camera devices with their specifications:
+- Physical device types (wide-angle, ultra-wide, telephoto)
+- Maximum video resolution
+- Maximum photo resolution
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+#### 4. Resolution Selection (🖼️)
+Tap the image icon to:
+1. **Select Aspect Ratio**: Choose from Square (1:1), 4:3, 3:4, 16:9, or 9:16
+2. **Select Resolution**: Pick from available resolutions based on your device capabilities
 
-## Congratulations! :tada:
+#### 5. Take Photo
+Tap the red capture button to take a photo. An alert will display:
+- File path
+- Raw resolution
+- File size
 
-You've successfully run and modified your React Native App. :partying_face:
+---
 
-### Now what?
+## 🔤 Digital Ink & OCR Integration
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+This project can be extended to include Digital Ink recognition and OCR (Optical Character Recognition) capabilities. Here's how to integrate these features:
 
-# Troubleshooting
+### Google ML Kit Integration
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+#### Installation
 
-# Learn More
+```bash
+# Install ML Kit dependencies
+npm install @react-native-ml-kit/text-recognition
+npm install @react-native-ml-kit/digital-ink-recognition
+```
 
-To learn more about React Native, take a look at the following resources:
+#### Text Recognition (OCR)
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+```typescript
+import TextRecognition from '@react-native-ml-kit/text-recognition';
+
+// Recognize text from image
+const recognizeText = async (imagePath: string) => {
+  try {
+    const result = await TextRecognition.recognize(imagePath);
+    console.log('Recognized text:', result.text);
+    
+    // Access individual blocks
+    result.blocks.forEach(block => {
+      console.log('Block:', block.text);
+      block.lines.forEach(line => {
+        console.log('Line:', line.text);
+      });
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('OCR Error:', error);
+  }
+};
+```
+
+#### Digital Ink Recognition
+
+```typescript
+import DigitalInkRecognition from '@react-native-ml-kit/digital-ink-recognition';
+
+// Initialize the recognizer with a language model
+const initializeInkRecognizer = async () => {
+  const model = await DigitalInkRecognition.getModel('en-US');
+  await model.download();
+  return model;
+};
+
+// Recognize handwritten strokes
+const recognizeInk = async (strokes: Stroke[]) => {
+  try {
+    const result = await DigitalInkRecognition.recognize(strokes);
+    console.log('Recognition result:', result.candidates);
+    return result.candidates[0]?.text;
+  } catch (error) {
+    console.error('Ink Recognition Error:', error);
+  }
+};
+
+// Stroke interface
+interface Stroke {
+  points: { x: number; y: number; t: number }[];
+}
+```
+
+### Integration with Camera
+
+```typescript
+// After taking a photo, perform OCR
+const onPressTakePhoto = async () => {
+  if (camera.current == null) return;
+  
+  const photo = await camera.current.takePhoto({
+    qualityPrioritization: 'quality',
+  });
+  
+  // Perform OCR on the captured photo
+  const ocrResult = await recognizeText(photo.path);
+  
+  Alert.alert(
+    'Text Recognized',
+    ocrResult?.text || 'No text found'
+  );
+};
+```
+
+### Supported Languages for OCR
+
+| Language | Code |
+|----------|------|
+| English | `en` |
+| Chinese | `zh` |
+| Japanese | `ja` |
+| Korean | `ko` |
+| Spanish | `es` |
+| French | `fr` |
+| German | `de` |
+| Italian | `it` |
+| Portuguese | `pt` |
+
+---
+
+## 🧪 Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+# or
+yarn test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run tests in watch mode
+npm test -- --watch
+```
+
+### Test Structure
+
+```typescript
+// __tests__/App.test.tsx
+import React from 'react';
+import ReactTestRenderer from 'react-test-renderer';
+import App from '../App';
+
+test('renders correctly', async () => {
+  await ReactTestRenderer.act(() => {
+    ReactTestRenderer.create(<App />);
+  });
+});
+```
+
+### Writing Custom Tests
+
+```typescript
+// __tests__/Camera.test.tsx
+import { findBestFormatForResolution } from '../App';
+
+describe('Camera Format Selection', () => {
+  test('should find best format for 1080x1920 resolution', () => {
+    const mockDevice = {
+      formats: [
+        { photoWidth: 1920, photoHeight: 1080, fieldOfView: 75 },
+        { photoWidth: 3024, photoHeight: 4032, fieldOfView: 75 },
+      ],
+      physicalDevices: ['wide-angle-camera'],
+    };
+    
+    const result = findBestFormatForResolution(
+      mockDevice,
+      { width: 1080, height: 1920 },
+      '9x16 Portrait (9:16)'
+    );
+    
+    expect(result).toBeDefined();
+  });
+});
+```
+
+### Linting
+
+```bash
+# Run ESLint
+npm run lint
+# or
+yarn lint
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### iOS: Camera not working on Simulator
+- The iOS Simulator doesn't support camera functionality
+- Use a physical iOS device for testing
+
+#### Android: Camera permission denied
+```bash
+# Clear app data and reinstall
+adb uninstall com.visioncameraapp
+npm run android
+```
+
+#### Metro Bundler Issues
+```bash
+# Clear Metro cache
+npm start -- --reset-cache
+```
+
+#### CocoaPods Issues
+```bash
+cd ios
+pod deintegrate
+pod cache clean --all
+pod install
+cd ..
+```
+
+#### Android Build Issues
+```bash
+cd android
+./gradlew clean
+cd ..
+npm run android
+```
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 🙏 Acknowledgments
+
+- [react-native-vision-camera](https://react-native-vision-camera.com/) - The amazing camera library
+- [React Native](https://reactnative.dev/) - The framework
+- [Google ML Kit](https://developers.google.com/ml-kit) - For OCR and Digital Ink capabilities
+
+
