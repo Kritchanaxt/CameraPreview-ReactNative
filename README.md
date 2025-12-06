@@ -6,14 +6,11 @@ A React Native application demonstrating advanced camera functionality using [re
 ![Vision Camera](https://img.shields.io/badge/Vision_Camera-4.7.0-green)
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-lightgrey)
 
+![Camera Preview](./Camera-preview.png)
+
 
 ---
 
-## 📱 Download APK
-
-> **[Download APK for Android](./app-release.apk)**
-
----
 
 ## 📋 Table of Contents
 
